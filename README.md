@@ -22,6 +22,10 @@
 - **中英切换**：桌面端与网页端共用一份设置，改哪边另一边立刻跟着变。
 - **检测项独立开关**：CPU / CPU 温度 / GPU / GPU 温度 / 内存 / 网络 / 磁盘 / SSD 温度 / 风扇 / 主板 / 进程，共 11 项。**关掉的项会停止采样**，不是把数字藏起来。
 
+## 下载即用
+
+不想编译：去 [Releases](https://github.com/Daxiaqingxuan/pc-monitor/releases/latest) 下载 `pc-monitor-1.0.0-win64.zip`，解压后运行 `bin\CPU-GPU监视器.exe`。解压出来的 `web\` 要留在 `bin\` 旁边，面板靠它。
+
 ## 快速开始
 
 要求：Windows 10 / 11，系统自带 .NET Framework 4.x。
@@ -159,6 +163,8 @@ A small Windows hardware monitor: a draggable always-on-top widget plus a local 
 powershell -ExecutionPolicy Bypass -File tools\build-widget.ps1
 .\bin\CPU-GPU监视器.exe
 ```
+
+Or skip the build: grab `pc-monitor-1.0.0-win64.zip` from [Releases](https://github.com/Daxiaqingxuan/pc-monitor/releases/latest) and run `bin\CPU-GPU监视器.exe`, keeping `web\` beside `bin\`.
 
 CPU temperature needs administrator rights and a local [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) installation; usage, clocks, memory and I/O work without either. The panel binds to loopback only — `--lan` exposes it on the network **without authentication**.
 
