@@ -192,6 +192,7 @@ window.I18N = (function () {
       "misc.other": "其他",
       "misc.mixed": "勾选功耗等混合单位指标时不可用",
       "misc.lanWarn": "局域网模式：本页面没有密码，同网段任何人都能打开。",
+      "misc.tempWarn": "温度暂不可用：本机没找到 LibreHardwareMonitor 传感器库。占用率、频率、内存、网络、磁盘都不受影响，装上它并允许提权后温度会自动出现。",
       "big.exit": "退出大屏",
     },
 
@@ -372,6 +373,7 @@ window.I18N = (function () {
       "misc.other": "Other",
       "misc.mixed": "Not available when mixed-unit lines such as power are selected",
       "misc.lanWarn": "LAN mode: this page has no password. Anyone on your network can open it.",
+      "misc.tempWarn": "Temperatures are unavailable: no LibreHardwareMonitor sensor library found on this machine. Usage, clocks, memory, network and disk are unaffected — install it and allow elevation and the temperatures appear on their own.",
       "big.exit": "Exit big screen",
     },
   };

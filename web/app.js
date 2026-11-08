@@ -651,6 +651,7 @@
     ramBlock: $("ramBlock"), netRow: $("netRow"), diskRow: $("diskRow"), fanRow: $("fanRow"),
     tempRow: $("tempRow"), boardWrap: $("boardWrap"), ssdWrap: $("ssdWrap"),
     lanWarn: $("lanWarn"),
+    tempWarn: $("tempWarn"),
   };
 
   const usageChart = new LineChart($("usageChart"), el.usageTip, { yMax: 100 });
@@ -1067,6 +1068,13 @@
     };
     const admin = state.elevated ? t("probe.admin") : t("probe.user");
     el.probeState.textContent = t("probe.line", { src: map[src] ? t(map[src]) : src, admin });
+
+    // A fresh install without LibreHardwareMonitor has a dash in every
+    // temperature slot. Explain it once, in one banner, instead of leaving the
+    // reader to work out what the dash means - the numbers that do work are
+    // listed right there so nothing looks broken.
+    const wantsTemp = ["cpuTemp", "gpuTemp", "diskTemp", "fans", "board"].some((k) => sensorOn(k));
+    if (el.tempWarn) el.tempWarn.hidden = !(src === "none" && wantsTemp);
   }
 
   /* ------------------------------------------------------- process list -- */

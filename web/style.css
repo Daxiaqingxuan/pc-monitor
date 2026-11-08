@@ -1144,6 +1144,14 @@ body.bigscreen .metric-pop { top: 56px; }
 .lan-warn[hidden] { display: none; }
 .lan-warn svg { width: 16px; height: 16px; flex: 0 0 auto; }
 
+/* The temperature hint is informational, not a fault: keep it in the calm
+   palette so it reads as "here is how to see more" rather than "broken". */
+.lan-warn.info {
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--cpu-1) 6%, var(--panel));
+  border-color: color-mix(in srgb, var(--cpu-1) 22%, var(--line));
+}
+
 /* ---------------------------------------------------- chart header fit ---- */
 /* Seven range buttons plus a legend do not fit next to the title in English.
    Let the legend drop to a second row instead of squeezing the heading into

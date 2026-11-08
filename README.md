@@ -4,6 +4,17 @@
 
 一个常驻 Windows 桌面的硬件监测器：**一块可以拖到任何角落的悬浮窗**，加上一个 **本地网页仪表盘**。单进程、离线，不用装 SDK、不用装 Python，双击一个 exe 就能用。
 
+> ### 第一次运行，先看这条
+>
+> **不装任何东西也能用**：占用率、频率、显存、内存、网络、磁盘全部正常。
+>
+> **温度、风扇、功耗、SSD 温度**要两个额外条件：本机装有
+> [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)，
+> 且程序以管理员身份运行（CPU 温度要读 MSR）。缺任意一个，温度位置**留空**，面板顶部会说明原因——
+> 这不是坏了。
+>
+> 只想知道现在忙不忙、卡不卡？不装 LHM 完全够用。
+
 <p align="center">
   <img src="docs/screenshots/panel-zh.png" width="820" alt="网页仪表盘（中文，实时曲线）">
 </p>
@@ -24,7 +35,7 @@
 
 ## 下载即用
 
-不想编译：去 [Releases](https://github.com/Daxiaqingxuan/pc-monitor/releases/latest) 下载 `pc-monitor-1.0.0-win64.zip`，解压后运行 `bin\CPU-GPU监视器.exe`。解压出来的 `web\` 要留在 `bin\` 旁边，面板靠它。
+不想编译：去 [Releases](https://github.com/Daxiaqingxuan/pc-monitor/releases/latest) 下载最新的 `pc-monitor-*-win64.zip`，解压后运行 `bin\CPU-GPU监视器.exe`。解压出来的 `web\` 要留在 `bin\` 旁边，面板靠它。
 
 ## 快速开始
 
@@ -151,6 +162,17 @@ CI 在 Windows runner 上跑这两步，并额外用 MSBuild 编译一遍 soluti
 
 A small Windows hardware monitor: a draggable always-on-top widget plus a local web dashboard, in **one process** with no installer, no background service and no external requests.
 
+> ### Before the first run
+>
+> **Nothing extra is needed** for usage, clocks, VRAM, memory, network and disk.
+>
+> **Temperatures, fans, power draw and SSD temps** need two things: a local
+> [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) install,
+> and administrator rights (CPU temperature reads MSR). Without both, those slots stay **empty** and
+> the dashboard shows a banner saying why — nothing is broken.
+>
+> Want to know whether the machine is busy? The no-install version is enough.
+
 - **Widget**: 216×130, top-most, semi-transparent, right-click for font size, opacity, trend graph, per-sensor switches and language.
 - **Dashboard**: `http://127.0.0.1:8770` — live charts, per-core load, memory / network / disk, fans, top processes, today's summary. Ships a PWA manifest for localhost use.
 - **History**: one row every 5 s, kept for 14 days; the panel can look back 1h / 6h / 24h / 7d (downsampled to 720 buckets).
@@ -164,7 +186,7 @@ powershell -ExecutionPolicy Bypass -File tools\build-widget.ps1
 .\bin\CPU-GPU监视器.exe
 ```
 
-Or skip the build: grab `pc-monitor-1.0.0-win64.zip` from [Releases](https://github.com/Daxiaqingxuan/pc-monitor/releases/latest) and run `bin\CPU-GPU监视器.exe`, keeping `web\` beside `bin\`.
+Or skip the build: grab the latest `pc-monitor-*-win64.zip` from [Releases](https://github.com/Daxiaqingxuan/pc-monitor/releases/latest) and run `bin\CPU-GPU监视器.exe`, keeping `web\` beside `bin\`.
 
 CPU temperature needs administrator rights and a local [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) installation; usage, clocks, memory and I/O work without either. The panel binds to loopback only — `--lan` exposes it on the network **without authentication**.
 

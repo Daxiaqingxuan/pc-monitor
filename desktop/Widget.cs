@@ -31,8 +31,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CPU-GPU 监视器")]
 [assembly: AssemblyProduct("CPU-GPU Monitor")]
 [assembly: AssemblyDescription("CPU/GPU temperature & usage desktop widget")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.1.0")]
+[assembly: AssemblyFileVersion("1.0.1.0")]
 [assembly: AssemblyCopyright("MIT License")]
 
 namespace HardwareMonitor
@@ -1814,6 +1814,17 @@ namespace HardwareMonitor
             return n;
         }
 
+        /// <summary>
+        /// True when at least one switch that can only be served by the
+        /// LibreHardwareMonitor bridge is on. Used to decide whether an empty
+        /// temperature corner deserves an explanation in the footer.
+        /// </summary>
+        private static bool WantsTemps()
+        {
+            return Settings.CpuTemp || Settings.GpuTemp || Settings.DiskTemp ||
+                   Settings.Fans || Settings.Board;
+        }
+
         private Size WidgetSize()
         {
             int w = (int)Math.Round(238 * _scale);
@@ -1955,12 +1966,20 @@ namespace HardwareMonitor
                         g.FillPath(b, fill);
                 }
 
+                // No reading means no glyph at all. An em dash in this corner is
+                // the very first thing a fresh install shows, and two of them read
+                // as "this thing is broken". An empty corner just looks like the
+                // temperature is not part of the layout; the footer explains why
+                // once, and the menu has the switch.
                 double? t = tempOn[i] ? temps[i] : (double?)null;
-                string tStr = t == null ? "—" : ((int)Math.Round(t.Value)).ToString(CultureInfo.InvariantCulture) + "°C";
-                using (SolidBrush tb = new SolidBrush(TempColor(t)))
+                if (t != null)
                 {
-                    float tw = g.MeasureString(tStr, _fTemp, 1000, _typo).Width;
-                    DrawText(g, tStr, _fTemp, tb, W - pad - tw, y + 1 * sc, halo);
+                    string tStr = ((int)Math.Round(t.Value)).ToString(CultureInfo.InvariantCulture) + "°C";
+                    using (SolidBrush tb = new SolidBrush(TempColor(t)))
+                    {
+                        float tw = g.MeasureString(tStr, _fTemp, 1000, _typo).Width;
+                        DrawText(g, tStr, _fTemp, tb, W - pad - tw, y + 1 * sc, halo);
+                    }
                 }
 
                 y += rowH;
@@ -1996,20 +2015,36 @@ namespace HardwareMonitor
                 }
             }
 
+            // Say what is missing, in the corner, once - now that the rows no
+            // longer carry an em dash, this line is the only hint that a
+            // temperature could be here at all.
+            string statStr = "";
+            if (!_alive) statStr = L.T("采集中断", "stalled");
+            else if (WantsTemps())
+            {
+                if (s.TempSrc == "none") statStr = L.T("需装 LHM", "needs LHM");
+                else if (s.TempSrc != "lhm") statStr = L.T("温度需提权", "needs admin");
+            }
+
+            float statW = statStr.Length > 0
+                ? g.MeasureString(statStr, _fSmall, 1000, _typo).Width
+                : 0;
+
+            // The footer is 214 px wide at 100% and the RAM string eats about
+            // two thirds of it. When both want the same line the explanation
+            // wins: a missing temperature needs an explanation far more than
+            // the RAM number needs to be on screen every second.
             if (_cfg.ShowMem && Settings.Mem)
             {
                 string ramStr = L.T("内存 ", "RAM ") + Bytes(s.MemUsed) + " / " + Bytes(s.MemTotal);
-                DrawText(g, ramStr, _fSmall, _bDim, pad, footY, halo);
+                float ramW = g.MeasureString(ramStr, _fSmall, 1000, _typo).Width;
+                float ramLimit = statW > 0 ? chevX - 10 * sc - statW - 7 * sc : chevX;
+                if (pad + ramW <= ramLimit)
+                    DrawText(g, ramStr, _fSmall, _bDim, pad, footY, halo);
             }
 
-            string statStr = "";
-            if (!_alive) statStr = L.T("采集中断", "stalled");
-            else if (s.TempSrc == "none") statStr = L.T("无温度源", "no sensors");
-            if (statStr.Length > 0)
-            {
-                float sw = g.MeasureString(statStr, _fSmall, 1000, _typo).Width;
-                DrawText(g, statStr, _fSmall, _bDim, chevX - 10 * sc - sw, footY, halo);
-            }
+            if (statW > 0)
+                DrawText(g, statStr, _fSmall, _bDim, chevX - 10 * sc - statW, footY, halo);
 
             PointF[] chev;
             if (_cfg.ShowGraph)
@@ -2947,6 +2982,33 @@ namespace HardwareMonitor
                 }
                 light.Save(Path.Combine(Dir, "selftest-light.png"), ImageFormat.Png);
             }
+
+            // What a first run looks like with no LibreHardwareMonitor: the
+            // temperature corner must be blank, not a pair of em dashes, and the
+            // footer carries the one-line hint. Kept as a fixture so this state
+            // can be inspected on a machine that does have the sensor library.
+            Snapshot cold = new Snapshot();
+            cold.Cpu = 37; cold.Gpu = 64;
+            cold.CpuTemp = null; cold.GpuTemp = null; cold.GpuHot = null;
+            cold.MemUsed = s.MemUsed; cold.MemTotal = s.MemTotal;
+            cold.TempSrc = "none";
+            fake.Current = cold;
+            fake.Version = 1000;
+            fake.LastTicks = DateTime.UtcNow.Ticks;
+            typeof(WidgetForm).GetMethod("OnTick", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(form, new object[] { null, EventArgs.Empty });
+            typeof(WidgetForm).GetMethod("BuildFrame", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(form, null);
+            ((Bitmap)typeof(WidgetForm)
+                .GetField("_frame", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(form))
+                .Save(Path.Combine(Dir, "selftest-notemp.png"), ImageFormat.Png);
+
+            // back to the warm sample so the collapsed frame stays comparable
+            fake.Current = s;
+            fake.Version = 1001;
+            fake.LastTicks = DateTime.UtcNow.Ticks;
+            typeof(WidgetForm).GetMethod("OnTick", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(form, new object[] { null, EventArgs.Empty });
 
             cfg.ShowGraph = false;
             typeof(WidgetForm).GetMethod("ApplyLook", BindingFlags.Instance | BindingFlags.NonPublic)
