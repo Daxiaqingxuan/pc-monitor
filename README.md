@@ -1,6 +1,6 @@
 # CPU / GPU 监视器
 
-一个常驻 Windows 桌面的硬件监测器：**一块可以拖到任何角落的悬浮窗**，加上一个 **本地网页仪表盘**。单进程、离线、不需安装运行时，双击一个 exe 就能用。
+一个常驻 Windows 桌面的硬件监测器：**一块可以拖到任何角落的悬浮窗**，加上一个 **本地网页仪表盘**。单进程、离线，不用装 SDK、不用装 Python，双击一个 exe 就能用。
 
 <p align="center">
   <img src="docs/screenshots/panel-zh.png" width="820" alt="网页仪表盘（中文，实时曲线）">
