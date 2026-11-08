@@ -1192,7 +1192,7 @@ namespace HardwareMonitor
 
             if (_panelWanted)
             {
-                _panel = new PanelServer(Program.PanelPort, _lan, Path.Combine(Program.MonitorDir, "web"), _hist);
+                _panel = new PanelServer(Program.PanelPort, _lan, Program.WebDir, _hist);
                 _panel.SetInfo(BuildInfoJson());
                 _panel.SetInterval(_interval);
                 _panel.IntervalChanged += delegate(int ms) { _interval = ms; };
@@ -2508,11 +2508,37 @@ namespace HardwareMonitor
     {
         public static string Dir;
         public static string MonitorDir;
+        /// <summary>Folder holding index.html / app.js, resolved once at start-up.</summary>
+        public static string WebDir;
         /// <summary>Where history and spike logs go; overridable for tests.</summary>
         public static string DataDir;
         /// <summary>Preferred dashboard port; the server walks upward if taken.</summary>
         public static int PanelPort = 8770;
         public static bool Elevated;
+
+        /// <summary>
+        /// The dashboard files are plain files on disk, not embedded in the exe,
+        /// so a copy that gets moved away from its folder still needs to find
+        /// them. Probed in order: beside the exe, beside the root, one level up.
+        /// The first hit wins; with no hit we keep the first candidate so the
+        /// "folder missing" log line names a path the user can act on.
+        /// </summary>
+        private static string ResolveWebDir(string exeDir)
+        {
+            string up = Path.GetDirectoryName(exeDir);
+            string[] probe = new string[]
+            {
+                Path.Combine(exeDir, "web"),
+                Path.Combine(MonitorDir, "web"),
+                Path.Combine(String.IsNullOrEmpty(up) ? exeDir : up, "web")
+            };
+            for (int i = 0; i < probe.Length; i++)
+            {
+                try { if (Directory.Exists(probe[i])) return probe[i]; }
+                catch { }
+            }
+            return probe[0];
+        }
 
         [STAThread]
         private static int Main(string[] args)
@@ -2536,9 +2562,14 @@ namespace HardwareMonitor
             }
             else
             {
+                // Anywhere else: treat the exe's own folder as the root. Using
+                // its parent here used to send data\ and web\ to the folder
+                // *above* wherever the user happened to unzip, which for a
+                // Desktop copy meant C:\Users\<name>\data.
                 Dir = exeDir;
-                MonitorDir = parent;
+                MonitorDir = exeDir;
             }
+            WebDir = ResolveWebDir(exeDir);
             Elevated = IsElevated();
 
             bool selftest = false, smoke = false, diag = false, capture = false, noElevate = false;
