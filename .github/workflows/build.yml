@@ -28,8 +28,17 @@ jobs:
         run: |
           $exe = Get-ChildItem .\bin\*.exe | Where-Object { $_.Name -notlike '*.old' } | Select-Object -First 1
           if (-not $exe) { throw 'build produced no exe' }
-          & $exe.FullName --selftest --no-elevate
+          # The widget is a GUI-subsystem exe, so `& $exe` returns immediately and
+          # the PNG check would race the process. -Wait is what actually blocks
+          # until the frames are written; the poll covers the flush afterwards.
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList '--selftest', '--no-elevate' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "selftest exited $($p.ExitCode)" }
+          $deadline = (Get-Date).AddSeconds(10)
+          while (-not (Test-Path .\desktop\selftest.png) -and (Get-Date) -lt $deadline) {
+              Start-Sleep -Milliseconds 200
+          }
           if (-not (Test-Path .\desktop\selftest.png)) { throw 'selftest produced no image' }
+          Get-ChildItem .\desktop\selftest*.png | Select-Object Name, Length
 
       - name: Endpoint smoke test
         shell: powershell
@@ -56,12 +65,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `msbuild` is not on PATH on a bare runner: it lives under the VS
+      # installation, and the install directory changes between images. Ask
+      # vswhere (shipped with every VS install) instead of hard-coding a path.
+      - name: Locate MSBuild
+        id: msbuild
+        shell: powershell
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) { throw "vswhere not found at $vswhere" }
+          $exe = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild `
+                    -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'no MSBuild.exe found under any VS install' }
+          "msbuild=$exe"
+          # Out-File -Encoding utf8 writes a BOM under PowerShell 5.1, and a BOM
+          # in GITHUB_OUTPUT corrupts the first key name. Write bare UTF-8.
+          $enc = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText($env:GITHUB_OUTPUT, "path=$exe" + [Environment]::NewLine, $enc)
+
       - name: Build solution
-        run: msbuild CPU-GPU-Monitor.sln /p:Configuration=Release /m /v:minimal
+        shell: powershell
+        run: |
+          & '${{ steps.msbuild.outputs.path }}' CPU-GPU-Monitor.sln /p:Configuration=Release /m /v:minimal /nologo
+          if ($LASTEXITCODE -ne 0) { throw "msbuild exited $LASTEXITCODE" }
 
       - name: Check output
         shell: powershell
         run: |
           $exe = Get-ChildItem .\bin\*.exe | Where-Object { $_.Name -notlike '*.old' } | Select-Object -First 1
           if (-not $exe) { throw 'msbuild produced no exe' }
-          $exe.VersionInfo.FileVersion
+          $ver = $exe.VersionInfo.FileVersion
+          if (-not $ver) { throw 'exe has no version resource' }
+          "MSBuild output: $($exe.Name) $ver"

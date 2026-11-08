@@ -72,7 +72,10 @@ try {
     Check 'GET /api/info' {
         $d = GetJson '/api/info'
         if (-not $d.info.cpuName) { throw "no cpuName" }
-        if (-not $d.info.gpuName) { throw "no gpuName" }
+        # A CI VM usually has no discrete GPU, and the app is expected to
+        # degrade instead of failing. So require the field, not a non-empty
+        # value; emptiness is a valid answer for gpuName.
+        if (-not ($d.info.PSObject.Properties.Name -contains 'gpuName')) { throw "gpuName field missing" }
     }
 
     Check 'GET /api/snapshot' {
