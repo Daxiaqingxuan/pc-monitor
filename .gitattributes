@@ -1,0 +1,17 @@
+# Normalize line endings on commit; keep binary assets untouched.
+* text=auto
+
+*.png binary
+*.ico binary
+*.bmp binary
+*.exe binary
+
+*.ps1 text
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.cs text
+*.js text
+*.css text
+*.html text
+*.json text
+*.md text

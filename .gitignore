@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------- build
+bin/
+obj/
+*.exe
+*.exe.old
+*.pdb
+*.old
+*.user
+*.suo
+.vs/
+
+# ---------------------------------------------------------------- runtime
+# Live history, spike logs and per-machine settings stay on the machine that
+# produced them: they describe one specific PC and are not part of the source.
+data/
+desktop/settings.json
+desktop/widget-config.json
+desktop/widget.log
+desktop/*.png
+*.ndjson
+*.log
+
+# ------------------------------------------------- legacy, kept locally
+# The PowerShell widget, its Python collector and the temperature helper were
+# replaced by desktop\*.cs. They are intentionally not published: the C# build
+# is the supported one, and shipping both would double the surface for no gain.
+runtime/
+desktop/widget.ps1
+desktop/启动悬浮窗.vbs
+tools/TempHelper.cs
+tools/build-temphelper.ps1
+tools/launch-app.ps1
+tools/stop.ps1
+tools/switch-single.ps1
+tools/*.py
+!tools/gen-icons.py
+tools/*.out
+tools/dump.txt
+docs/*.html
+docs/screenshots/*.tmp
+
+# ---------------------------------------------------------------- python
+__pycache__/
+*.pyc
+.venv/
+
+# ---------------------------------------------------------------- os / ide
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+*.swp

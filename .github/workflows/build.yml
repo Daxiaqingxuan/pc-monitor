@@ -1,0 +1,67 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # The supported build: one PowerShell script, the compiler that ships with
+  # Windows. This is the job that proves the artifact users actually run works.
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Front-end load test (Node, no dependencies)
+        run: node tools/dom-harness.js
+
+      - name: Build with csc (no SDK required)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-widget.ps1
+
+      - name: Render self-test frames
+        shell: powershell
+        run: |
+          $exe = Get-ChildItem .\bin\*.exe | Where-Object { $_.Name -notlike '*.old' } | Select-Object -First 1
+          if (-not $exe) { throw 'build produced no exe' }
+          & $exe.FullName --selftest --no-elevate
+          if (-not (Test-Path .\desktop\selftest.png)) { throw 'selftest produced no image' }
+
+      - name: Endpoint smoke test
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\smoke-test.ps1
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-exe
+          path: bin/*.exe
+          if-no-files-found: error
+
+      - name: Upload self-test frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: selftest-frames
+          path: desktop/selftest*.png
+          if-no-files-found: ignore
+
+  # Second opinion: the same sources must build through a normal .NET
+  # Framework / MSBuild toolchain, which is what Visual Studio uses.
+  msbuild:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build solution
+        run: msbuild CPU-GPU-Monitor.sln /p:Configuration=Release /m /v:minimal
+
+      - name: Check output
+        shell: powershell
+        run: |
+          $exe = Get-ChildItem .\bin\*.exe | Where-Object { $_.Name -notlike '*.old' } | Select-Object -First 1
+          if (-not $exe) { throw 'msbuild produced no exe' }
+          $exe.VersionInfo.FileVersion

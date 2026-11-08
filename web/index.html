@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="app.title">硬件监测 · CPU / GPU</title>
+<link rel="icon" href="favicon.svg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f4f5f8">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+  /* Resolve the theme before the first paint, otherwise a dark-mode user sees
+     the light palette flash for a frame. app.js re-applies the same rule. */
+  try {
+    var savedTheme = localStorage.getItem("hw-monitor-theme");
+    document.documentElement.dataset.theme =
+      savedTheme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  } catch (e) { /* private mode: fall back to the light default */ }
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <rect x="4.5" y="4.5" width="23" height="23" rx="6" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M11 20.5V13M16 20.5v-4.2M21 20.5v-9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1 data-i18n="app.brand">硬件监测</h1>
+        <p id="hostLine" data-i18n="app.connecting">正在连接传感器…</p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="seg" id="intervalSeg" role="group" data-i18n-aria="chart.window">
+        <button data-ms="1000" class="on">1s</button>
+        <button data-ms="2000">2s</button>
+        <button data-ms="5000">5s</button>
+      </div>
+      <button class="btn" id="exportBtn" data-i18n-title="btn.exportTitle">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 13h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span data-i18n="btn.export">导出</span>
+      </button>
+      <button class="btn" id="pauseBtn" data-i18n-title="btn.pauseTitle">
+        <svg viewBox="0 0 16 16" fill="none" id="pauseIcon"><path d="M6 4v8M10 4v8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span id="pauseLabel" data-i18n="btn.pause">暂停</span>
+      </button>
+      <div class="alert-wrap">
+        <button class="btn icon" id="alertBtn" data-i18n-title="btn.alertTitle" data-i18n-aria="btn.alertTitle" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M8 2.2a3.8 3.8 0 0 0-3.8 3.8v3L3 11.4h10L11.8 9V6A3.8 3.8 0 0 0 8 2.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.7 13.1a1.4 1.4 0 0 0 2.6 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </button>
+        <div class="alert-pop" id="alertPop" hidden>
+          <div class="ap-head"><b data-i18n="alert.title">告警</b><button class="link" id="alertClose" data-i18n="alert.close">收起</button></div>
+          <label class="ap-row"><input type="checkbox" id="alertEnabled" checked> <span data-i18n="alert.enable">启用告警</span></label>
+          <label class="ap-row"><input type="checkbox" id="alertNotify"> <span data-i18n="alert.notify">桌面通知</span></label>
+          <div class="ap-grid">
+            <label><span data-i18n="alert.cpuTemp">CPU 温度</span> <input type="number" id="thCpuTemp" min="40" max="110" step="1" value="85"></label>
+            <label><span data-i18n="alert.gpuTemp">GPU 温度</span> <input type="number" id="thGpuTemp" min="40" max="110" step="1" value="90"></label>
+            <label><span data-i18n="alert.cpuLoad">CPU 占用</span> <input type="number" id="thCpuLoad" min="10" max="100" step="1" value="95"></label>
+            <label><span data-i18n="alert.gpuLoad">GPU 占用</span> <input type="number" id="thGpuLoad" min="10" max="100" step="1" value="95"></label>
+          </div>
+          <p class="ap-hint" data-i18n="alert.hint">超阈值时对应卡片描边变红、标签页标题闪烁；桌面通知需浏览器授权。</p>
+        </div>
+      </div>
+      <div class="alert-wrap">
+        <button class="btn" id="settingsBtn" data-i18n-title="btn.settingsTitle" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="6" cy="4.5" r="1.6" fill="var(--card)" stroke="currentColor" stroke-width="1.3"/><circle cx="10.5" cy="8" r="1.6" fill="var(--card)" stroke="currentColor" stroke-width="1.3"/><circle cx="7.5" cy="11.5" r="1.6" fill="var(--card)" stroke="currentColor" stroke-width="1.3"/></svg>
+          <span data-i18n="btn.settings">检测项</span>
+        </button>
+        <div class="alert-pop set-pop" id="settingsPop" hidden>
+          <div class="ap-head"><b data-i18n="settings.title">检测项</b><button class="link" id="settingsClose" data-i18n="alert.close">收起</button></div>
+          <div class="set-lang">
+            <span data-i18n="settings.lang">语言</span>
+            <div class="seg tiny" id="langSeg" role="group" data-i18n-aria="lang.label">
+              <button data-lang="zh" class="on">中文</button>
+              <button data-lang="en">English</button>
+            </div>
+          </div>
+          <div class="set-grid" id="sensorGrid">
+            <label class="ap-row"><input type="checkbox" data-sensor="cpu" checked> <span data-i18n="sen.cpu">CPU 占用</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="cpuTemp" checked> <span data-i18n="sen.cpuTemp">CPU 温度 / 功耗</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="gpu" checked> <span data-i18n="sen.gpu">GPU 占用</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="gpuTemp" checked> <span data-i18n="sen.gpuTemp">GPU 温度 / 热点</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="mem" checked> <span data-i18n="sen.mem">内存</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="net" checked> <span data-i18n="sen.net">网络速率</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="disk" checked> <span data-i18n="sen.disk">磁盘读写</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="diskTemp" checked> <span data-i18n="sen.diskTemp">SSD 温度</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="fans" checked> <span data-i18n="sen.fans">风扇转速</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="board" checked> <span data-i18n="sen.board">主板温度</span></label>
+            <label class="ap-row"><input type="checkbox" data-sensor="proc" checked> <span data-i18n="sen.proc">进程榜单</span></label>
+          </div>
+          <p class="ap-hint" data-i18n="settings.hint"></p>
+        </div>
+      </div>
+      <button class="btn icon" id="bigBtn" data-i18n-title="btn.bigTitle" data-i18n-aria="btn.bigAria" aria-pressed="false">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M6 2.4H3.6a1.2 1.2 0 0 0-1.2 1.2V6M10 2.4h2.4a1.2 1.2 0 0 1 1.2 1.2V6M13.6 10v2.4a1.2 1.2 0 0 1-1.2 1.2H10M6 13.6H3.6a1.2 1.2 0 0 1-1.2-1.2V10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+      <button class="btn icon" id="themeBtn" data-i18n-title="btn.themeTitle" data-i18n-aria="btn.themeAria">
+        <svg viewBox="0 0 16 16" fill="none" id="themeIcon"><path d="M8 2.6a5.4 5.4 0 1 0 0 10.8A6.2 6.2 0 0 1 8 2.6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="live" id="live"><span class="dot"></span><span id="liveText">连接中</span></div>
+    </div>
+  </header>
+
+  <div class="lan-warn" id="lanWarn" hidden>
+    <svg viewBox="0 0 16 16" fill="none"><path d="M8 5.4v3.2M8 11.4v.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 1.9 14.4 13H1.6L8 1.9Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    <span data-i18n="misc.lanWarn"></span>
+  </div>
+
+  <main>
+    <section class="hero" id="hero">
+      <!-- CPU -->
+      <article class="card meter cpu" id="cpuCard">
+        <div class="card-head">
+          <div class="titles">
+            <span class="tag">CPU</span>
+            <h2 id="cpuName">—</h2>
+          </div>
+          <div class="temp-chip" id="cpuTempChip"><span>—</span></div>
+        </div>
+
+        <div class="meter-body">
+          <div class="ring-wrap">
+            <svg class="ring" viewBox="0 0 120 120">
+              <defs>
+                <linearGradient id="cpuGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="var(--cpu-1)"/>
+                  <stop offset="100%" stop-color="var(--cpu-2)"/>
+                </linearGradient>
+              </defs>
+              <circle class="ring-track" cx="60" cy="60" r="52"/>
+              <circle class="ring-fill" id="cpuRing" cx="60" cy="60" r="52"
+                      stroke="url(#cpuGrad)" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>
+            </svg>
+            <div class="ring-center">
+              <b id="cpuUsage">0</b><i>%</i>
+            </div>
+          </div>
+
+          <dl class="stats">
+            <div id="cpuTempRow"><dt data-i18n="stat.temp">温度</dt><dd id="cpuTemp">—</dd></div>
+            <div><dt data-i18n="stat.power">功耗</dt><dd id="cpuPower">—</dd></div>
+            <div><dt data-i18n="stat.clk">当前频率</dt><dd id="cpuClk">—</dd></div>
+            <div><dt data-i18n="stat.cores">核心 / 线程</dt><dd id="cpuCores">—</dd></div>
+            <div><dt data-i18n="stat.peak">峰值占用</dt><dd id="cpuPeak">—</dd></div>
+          </dl>
+        </div>
+
+        <div class="sub-block">
+          <div class="sub-head"><span data-i18n="sub.cores">核心负载</span><span class="sub-meta" id="coreMeta">—</span></div>
+          <div class="cores" id="coreGrid"></div>
+        </div>
+      </article>
+
+      <!-- GPU -->
+      <article class="card meter gpu" id="gpuCard">
+        <div class="card-head">
+          <div class="titles">
+            <span class="tag">GPU</span>
+            <h2 id="gpuName">—</h2>
+          </div>
+          <div class="temp-chip" id="gpuTempChip"><span>—</span></div>
+        </div>
+
+        <div class="meter-body">
+          <div class="ring-wrap">
+            <svg class="ring" viewBox="0 0 120 120">
+              <defs>
+                <linearGradient id="gpuGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="var(--gpu-1)"/>
+                  <stop offset="100%" stop-color="var(--gpu-2)"/>
+                </linearGradient>
+              </defs>
+              <circle class="ring-track" cx="60" cy="60" r="52"/>
+              <circle class="ring-fill" id="gpuRing" cx="60" cy="60" r="52"
+                      stroke="url(#gpuGrad)" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>
+            </svg>
+            <div class="ring-center">
+              <b id="gpuUsage">0</b><i>%</i>
+            </div>
+          </div>
+
+          <dl class="stats">
+            <div id="gpuTempRow"><dt data-i18n="stat.temp">温度</dt><dd id="gpuTemp">—</dd></div>
+            <div><dt data-i18n="stat.power">功耗</dt><dd id="gpuPower">—</dd></div>
+            <div id="gpuHotRow"><dt data-i18n="stat.hot">热点</dt><dd id="gpuHot">—</dd></div>
+            <div><dt data-i18n="stat.vram">显存占用</dt><dd id="vram">—</dd></div>
+            <div><dt data-i18n="stat.peak">峰值占用</dt><dd id="gpuPeak">—</dd></div>
+          </dl>
+        </div>
+
+        <div class="sub-block">
+          <div class="sub-head"><span data-i18n="sub.engines">引擎负载</span><span class="sub-meta" id="vramMeta">—</span></div>
+          <div class="engines" id="engineList"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="charts">
+      <article class="card chart-card" id="usageCard">
+        <div class="card-head">
+          <div class="titles"><span class="tag">LOAD</span><h2 data-i18n="chart.usage">占用率趋势</h2></div>
+          <div class="legend">
+            <span class="lg-set" id="usageLegend"></span>
+            <button class="btn icon mini" id="usageAdd" data-i18n-title="chart.pick" aria-expanded="false">+</button>
+            <button class="btn icon mini" id="usageSave" data-i18n-title="chart.png">⤓</button>
+            <div class="seg tiny" data-range role="group" data-i18n-aria="chart.window">
+              <button data-ms="60000">1m</button>
+              <button data-ms="300000" class="on">5m</button>
+              <button data-ms="900000">15m</button>
+              <button data-ms="3600000">1h</button>
+              <button data-ms="21600000">6h</button>
+              <button data-ms="86400000">24h</button>
+              <button data-ms="604800000">7d</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-holder">
+          <canvas id="usageChart"></canvas>
+          <div class="cursor-tip" id="usageTip"></div>
+        </div>
+        <div class="metric-pop" id="usagePop" hidden></div>
+      </article>
+
+      <article class="card chart-card" id="tempCard">
+        <div class="card-head">
+          <div class="titles"><span class="tag">TEMP</span><h2 data-i18n="chart.temp">温度趋势</h2></div>
+          <div class="legend">
+            <span class="lg-set" id="tempLegend"></span>
+            <button class="btn icon mini" id="tempAdd" data-i18n-title="chart.pick" aria-expanded="false">+</button>
+            <button class="btn icon mini" id="tempFit" data-i18n-title="chart.fit" aria-pressed="false">↕</button>
+            <button class="btn icon mini" id="tempSave" data-i18n-title="chart.png">⤓</button>
+            <div class="seg tiny" data-range role="group" data-i18n-aria="chart.window">
+              <button data-ms="60000">1m</button>
+              <button data-ms="300000" class="on">5m</button>
+              <button data-ms="900000">15m</button>
+              <button data-ms="3600000">1h</button>
+              <button data-ms="21600000">6h</button>
+              <button data-ms="86400000">24h</button>
+              <button data-ms="604800000">7d</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-holder">
+          <canvas id="tempChart"></canvas>
+          <div class="cursor-tip" id="tempTip"></div>
+          <div class="chart-empty" id="tempEmpty" hidden>
+            <div class="ce-title" data-i18n="empty.tempTitle">没有读到温度传感器</div>
+            <div class="ce-body">
+              <span data-i18n="empty.tempBody">未找到 LibreHardwareMonitor 的传感器库，或没有取得读取权限。</span>
+              <button class="link" id="howBtn" data-i18n="empty.tempBtn">查看当前探测状态</button>
+            </div>
+          </div>
+        </div>
+        <div class="metric-pop" id="tempPop" hidden></div>
+      </article>
+    </section>
+
+    <section class="fans">
+      <article class="card" id="fanCard">
+        <div class="card-head">
+          <div class="titles"><span class="tag">FAN</span><h2 data-i18n="fan.title">风扇转速</h2></div>
+          <span class="sub-meta" id="fanMeta">—</span>
+        </div>
+        <div class="fan-grid" id="fanGrid"></div>
+      </article>
+    </section>
+
+    <section class="bottom">
+      <article class="card" id="sysCard">
+        <div class="card-head">
+          <div class="titles"><span class="tag">SYS</span><h2 data-i18n="sys.title">内存 · 网络 · 磁盘</h2></div>
+          <span class="sub-meta" id="ramPct">—</span>
+        </div>
+        <div id="ramBlock">
+          <div class="ram-bar"><span id="ramFill"></span></div>
+          <div class="ram-legend">
+            <div><b id="ramUsed">—</b><dt data-i18n="sys.used">已用</dt></div>
+            <div><b id="ramTotal">—</b><dt data-i18n="sys.total">总量</dt></div>
+            <div><b id="ramFree">—</b><dt data-i18n="sys.free">可用</dt></div>
+          </div>
+        </div>
+        <div class="io-rows">
+          <div class="io-row" id="netRow">
+            <span class="io-label" data-i18n="sys.net">网络</span>
+            <span class="io-val"><i class="down">↓</i><b id="netRx">—</b></span>
+            <span class="io-val"><i class="up">↑</i><b id="netTx">—</b></span>
+          </div>
+          <div class="io-row" id="diskRow">
+            <span class="io-label" data-i18n="sys.disk">磁盘</span>
+            <span class="io-val"><i class="warm" data-i18n="sys.read">读</i><b id="diskRead">—</b></span>
+            <span class="io-val"><i class="hot" data-i18n="sys.write">写</i><b id="diskWrite">—</b></span>
+            <span class="io-busy" id="diskBusy">—</span>
+          </div>
+          <div class="io-row" id="fanRow">
+            <span class="io-label" data-i18n="sys.fan">风扇</span>
+            <span class="io-val" id="fanSysWrap"><i class="cool" data-i18n="sys.max">最高</i><b id="fanSys">—</b></span>
+            <span class="io-val" id="fanCpuWrap"><i class="cool">CPU</i><b id="fanCpu">—</b></span>
+          </div>
+          <div class="io-row" id="tempRow">
+            <span class="io-label" data-i18n="sys.temp">温度</span>
+            <span class="io-val" id="boardWrap"><i data-i18n="sys.board">主板</i><b id="boardTemp">—</b></span>
+            <span class="io-val" id="ssdWrap"><i>SSD</i><b id="ssdTemp">—</b></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" id="procCard">
+        <div class="card-head">
+          <div class="titles"><span class="tag">TOP</span><h2 data-i18n="proc.title">进程占用</h2></div>
+          <span class="sub-meta" id="procMeta">—</span>
+        </div>
+        <div class="proc-tools">
+          <input class="proc-search" id="procSearch" type="search" data-i18n-ph="proc.filter" placeholder="过滤进程…" autocomplete="off">
+          <div class="seg tiny" id="procSort" role="group" data-i18n-aria="proc.sort">
+            <button data-sort="cpu" class="on">CPU</button>
+            <button data-sort="mem" data-i18n="load.ram">内存</button>
+          </div>
+          <div class="seg tiny" id="procCount" role="group" data-i18n-aria="proc.count">
+            <button data-n="6" class="on">6</button>
+            <button data-n="10">10</button>
+            <button data-n="20">20</button>
+          </div>
+        </div>
+        <ul class="procs" id="procList"></ul>
+      </article>
+
+      <article class="card" id="summaryCard">
+        <div class="card-head">
+          <div class="titles"><span class="tag">TODAY</span><h2 data-i18n="sum.title">今日概况</h2></div>
+          <span class="sub-meta" id="sumDay">—</span>
+        </div>
+        <dl class="sum-list">
+          <div><dt data-i18n="sum.cpuMax">最高 CPU 温度</dt><dd id="sumCpuMax">—</dd></div>
+          <div><dt data-i18n="sum.gpuMax">最高 GPU 温度</dt><dd id="sumGpuMax">—</dd></div>
+          <div><dt data-i18n="sum.load">峰值占用</dt><dd id="sumLoad">—</dd></div>
+          <div><dt data-i18n="sum.busy">高负载时长</dt><dd id="sumBusy">—</dd></div>
+          <div><dt data-i18n="sum.power">平均功耗</dt><dd id="sumPower">—</dd></div>
+          <div><dt data-i18n="sum.rows">已记录</dt><dd id="sumRows">—</dd></div>
+        </dl>
+      </article>
+    </section>
+
+    <details class="note" id="noteCard">
+      <summary>
+        <span class="note-dot"></span>
+        <span data-i18n="note.title">数据来源与已知限制</span>
+      </summary>
+      <div class="note-body">
+        <p data-i18n="note.usage"></p>
+        <p data-i18n="note.temps"></p>
+        <ul>
+          <li data-i18n="note.temps1"></li>
+          <li data-i18n="note.temps2"></li>
+        </ul>
+        <p data-i18n="note.none"></p>
+        <p data-i18n="note.hist"></p>
+        <p data-i18n="note.keys"></p>
+        <p class="mono" id="probeState" data-i18n="note.state">探测状态：—</p>
+      </div>
+    </details>
+
+    <footer>
+      <span id="footInfo">—</span>
+      <span id="footCost">—</span>
+    </footer>
+  </main>
+</div>
+
+<button class="btn big-exit" id="bigExit" type="button">
+  <svg viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  <span data-i18n="big.exit">退出大屏</span>
+</button>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
