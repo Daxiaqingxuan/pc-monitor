@@ -1061,9 +1061,12 @@ namespace HardwareMonitor
                 sb.Append(",\"gap\":").Append(Gap.ToString("0.#", CultureInfo.InvariantCulture));
                 sb.Append(",\"from\":").Append(_n > 0 ? _firstT.ToString(CultureInfo.InvariantCulture) : "null");
                 sb.Append(",\"to\":").Append(_n > 0 ? _lastT.ToString(CultureInfo.InvariantCulture) : "null");
-                sb.Append(",\"cpuTemp\":{\"max\":").Append(Math.Round(_cpuTemp ?? 0, 1).ToString("0.#", CultureInfo.InvariantCulture))
+                // A missing temperature must stay null all the way out. Coalescing
+                // it to 0 here made the summary claim "max 0°C" on a machine with
+                // no sensor library - a number that is wrong beats no number.
+                sb.Append(",\"cpuTemp\":{\"max\":").Append(_cpuTemp == null ? "null" : Math.Round(_cpuTemp.Value, 1).ToString("0.#", CultureInfo.InvariantCulture))
                   .Append(",\"at\":").Append(_cpuTemp == null ? "null" : _cpuTempT.ToString(CultureInfo.InvariantCulture)).Append('}');
-                sb.Append(",\"gpuTemp\":{\"max\":").Append(Math.Round(_gpuTemp ?? 0, 1).ToString("0.#", CultureInfo.InvariantCulture))
+                sb.Append(",\"gpuTemp\":{\"max\":").Append(_gpuTemp == null ? "null" : Math.Round(_gpuTemp.Value, 1).ToString("0.#", CultureInfo.InvariantCulture))
                   .Append(",\"at\":").Append(_gpuTemp == null ? "null" : _gpuTempT.ToString(CultureInfo.InvariantCulture)).Append('}');
                 sb.Append(",\"cpuLoad\":{\"max\":").Append(Math.Round(_cpuLoad ?? 0, 1).ToString("0.#", CultureInfo.InvariantCulture))
                   .Append(",\"at\":").Append(_cpuLoad == null ? "null" : _cpuLoadT.ToString(CultureInfo.InvariantCulture)).Append('}');
