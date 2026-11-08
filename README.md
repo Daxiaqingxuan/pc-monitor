@@ -1,5 +1,7 @@
 # CPU / GPU 监视器
 
+[![build](https://github.com/Daxiaqingxuan/pc-monitor/actions/workflows/build.yml/badge.svg)](https://github.com/Daxiaqingxuan/pc-monitor/actions/workflows/build.yml)
+
 一个常驻 Windows 桌面的硬件监测器：**一块可以拖到任何角落的悬浮窗**，加上一个 **本地网页仪表盘**。单进程、离线，不用装 SDK、不用装 Python，双击一个 exe 就能用。
 
 <p align="center">
@@ -25,8 +27,9 @@
 要求：Windows 10 / 11，系统自带 .NET Framework 4.x。
 
 ```powershell
-# 1. 取代码：git clone 本仓库，或直接下载 ZIP 解压
-cd cpu-gpu-monitor
+# 1. 取代码
+git clone https://github.com/Daxiaqingxuan/pc-monitor.git
+cd pc-monitor
 
 # 2. 编译：只用 Windows 自带的 csc.exe，不需要装 SDK
 powershell -ExecutionPolicy Bypass -File tools\build-widget.ps1
