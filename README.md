@@ -140,6 +140,8 @@ CI 在 Windows runner 上跑这两步，并额外用 MSBuild 编译一遍 soluti
 
 ## English
 
+![Dashboard in English](docs/screenshots/panel-en.png)
+
 A small Windows hardware monitor: a draggable always-on-top widget plus a local web dashboard, in **one process** with no installer, no background service and no external requests.
 
 - **Widget**: 216×130, top-most, semi-transparent, right-click for font size, opacity, trend graph, per-sensor switches and language.
